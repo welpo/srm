@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample Ratio Mismatch Calculator</title>
+    <meta name="description" content="Sample Ratio Mismatch (SRM) Calculator. Quickly check if the user distribution looks OK.">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-48x48.png" sizes="48x48">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+    <!-- Colours -->
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#4a5568">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#334652">
+
+    <!-- CSP -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' https://cdn.jsdelivr.net 'unsafe-eval';
+        style-src 'self';
+        connect-src 'self';
+        img-src 'self' data:;
+        font-src 'self' data:;
+        manifest-src 'self';
+        worker-src 'self';
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        ">
+    <link rel="stylesheet" href="styles.css?h=504ec217">
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="header-container">
+            <h1 class="tools-title"><a href="https://ab.osc.garden">Óscar’s A/B Testing Toolkit</a></h1>
+            <nav class="tools-nav">
+                <a href="https://calculator.osc.garden">Sample Size/Duration Calculator</a>
+                <a class="active">SRM Calculator</a>
+                <a href="https://stop-early-stopping.osc.garden">Stop Early Stopping</a>
+            </nav>
+        </div>
+
+        <main class="content-container">
+            <header class="calculator-header">
+                <div class="header-content">
+                    <div class="robot">
+                        <div class="robot-face">
+                            <div class="robot-eyes">
+                                <div class="robot-eye" id="leftEye"></div>
+                                <div class="robot-eye" id="rightEye"></div>
+                            </div>
+                            <div class="robot-mouth"></div>
+                        </div>
+                    </div>
+                    <h1 class="app-title">Sample Ratio Mismatch Calculator</h1>
+                </div>
+                <p class="calculator-subtitle">Check if your A/B test traffic was correctly distributed</p>
+            </header>
+
+            <div class="inputs-grid">
+                <div class="input-group">
+                    <div class="label-row">
+                        <label for="observedCounts" class="input-label">Observed counts</label>
+                        <span class="tooltip-trigger" tabindex="0" role="button" aria-label="Information about observed counts">
+                            <span class="tooltip">The actual visitor numbers for each variant in your experiment.</span>
+                        </span>
+                    </div>
+                    <input type="text" id="observedCounts" class="input-field" placeholder="Example: 1000, 950">
+                    <p class="input-hint">Enter numbers for each variant, separated by commas, spaces, or any non-numeric character.</p>
+                    <div class="data-preview" id="dataPreview"></div>
+                    <div id="countsError" class="error-message">Please enter at least two numbers.</div>
+                </div>
+
+                <div class="input-group">
+                    <div class="label-row">
+                        <label class="input-label">Expected distribution</label>
+                        <span class="tooltip-trigger" tabindex="0" role="button" aria-label="Information about expected distribution">
+                            <span class="tooltip">How you split traffic between variants. Use 'Equal split' for even splits (e.g. 50/50), and 'Custom ratio' for other proportions (e.g. 60/40).</span>
+                        </span>
+                    </div>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="distributionType" id="equalDistribution" value="equal" checked>
+                            Equal split
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="distributionType" id="customDistribution" value="custom">
+                            Custom ratio
+                        </label>
+                    </div>
+
+                    <div id="ratioContainer" class="ratio-container">
+                        <input type="text" id="expectedRatio" class="input-field" placeholder="Example: 60, 40 or 60:40 or 3:2">
+                        <p class="input-hint">Enter the expected ratio for each variant.</p>
+                        <div class="data-preview" id="ratioPreview"></div>
+                        <div id="ratioError" class="error-message">Number of ratios must match the number of observed counts.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="resultsContainer" class="results">
+                <div id="verdict" class="verdict no-mismatch">No significant Sample Ratio Mismatch</div>
+
+                <div class="tech-details">
+                    <div class="detail-item">
+                        <p class="detail-label">p-value</p>
+                        <p class="detail-value" id="pValue">0</p>
+                    </div>
+                    <div class="detail-item">
+                        <p class="detail-label">Chi-square</p>
+                        <p class="detail-value" id="chiSquareValue">0</p>
+                    </div>
+                </div>
+
+                <table class="expected-table">
+                    <thead>
+                        <tr>
+                            <th>Observed</th>
+                            <th>Expected</th>
+                            <th>Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expectationTableBody">
+                        </tbody>
+                </table>
+
+                <p class="explanation" id="explanationText">
+                    Sample Ratio Mismatch (SRM) occurs when the distribution of visitors between variants
+                    significantly differs from the expected distribution. A p-value less than 0.05
+                    typically indicates a mismatch worth investigating.
+                </p>
+
+                <div class="share-section">
+                    <!-- Share -->
+                    <a id="shareBtn" class="share-button">
+                        <svg id="link" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                        Share results
+                    </a>
+                </div>
+            </div>
+
+            <!-- Tips modal -->
+            <div id="srm-tips" class="modal-overlay">
+                <a href="#" class="modal-backdrop"></a>
+                <div class="modal-container">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Sample Ratio Mismatch (SRM) Tips</h3>
+                        <a href="#" class="modal-close" title="Close" aria-label="Close">&times;</a>
+                    </div>
+                    <div class="modal-body">
+                        <ul class="tips-list">
+                            <li>SRM is a critical validity check; it <strong>should be automated</strong> in your experimentation process.</li>
+                            <li>When SRM occurs, <strong>investigate</strong> immediately. Don't interpret test results until you've resolved the mismatch; it indicates a fundamental issue in your experimentation system.</li>
+                            <li><strong>Common SRM causes</strong>: browser caching, bot traffic, tracking implementation errors, and redirects affecting one variant differently.</li>
+                            <li>Check for SRM issues in <strong>specific segments</strong> (browsers, devices, regions…) to identify the source.</li>
+                            <li><strong>Run A/A tests</strong> to validate your setup.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- How It Works modal -->
+            <div id="how-it-works" class="modal-overlay">
+                <a href="#" class="modal-backdrop"></a>
+                <div class="modal-container">
+                    <div class="modal-header">
+                        <h3 class="modal-title">How This Works</h3>
+                        <a href="#" class="modal-close" title="Close" aria-label="Close">&times;</a>
+                    </div>
+                    <div class="modal-body">
+                        <h4>Context</h4>
+                        <p>Picture this: you set up your experiment to have 50% of users on variant A and 50% on variant B. The experiment is over and you have 44,000 users in A, and 45,000 in B. Is this a problem?</p>
+
+                        <p>Most likely. If your assignment worked properly, the probability of seeing this imbalance (or a larger one) is less than 0.1%.</p>
+
+                        <p>When the difference between the ratios is significant, you have a Sample Ratio Mismatch (SRM). Unless you understand why it happened, you should not analyse the results of the experiment; your setup may be flawed, invalidating any conclusions.</p>
+
+                        <p>SRM can be detected using a statistical test: the <a href="https://www.jmp.com/en/statistics-knowledge-portal/chi-square-test/chi-square-goodness-of-fit-test" class="external" rel="noopener noreferrer">Chi-Squared Goodness-of-Fit</a>. It compares the actual frequencies (44,000 and 45,000 in the example) to the expected frequencies (usually an even distribution: 44,500 and 44,500).</p>
+
+                        <p>When you run a chi-squared test, you get a chi-square value. The chi-square value is a positive number that indicates how large of a mismatch there is between reality and expectations.</p>
+
+                        <p>We can use the chi-square value to get a p-value.</p>
+
+                        <p>The p-value is a number between 0 and 1 that indicates how surprised you should be to see your distribution (or one even more extreme) <strong>if your experiment setup was working correctly</strong>. The smaller the p-value, the more surprised you should be.</p>
+
+                        <p>A perfectly even distribution gets a p-value of 1—you shouldn't be surprised at all. A p-value of 0.50 means this imbalance would happen about 50% of the time by chance alone; nothing to worry about. A p-value of 0.0008 (like in our 44,000 vs 45,000 example) means this would happen less than 0.1% of the time; it's unlikely to be random.</p>
+
+                        <p>p-values below 0.05 are evidence of a <strong>potential</strong> SRM issue, and values below 0.01 are <strong>strong evidence</strong> that something is wrong with your experiment setup.</p>
+
+                        <hr>
+
+                        <h4>Calculations</h4>
+
+                        <p>When you enter two or more observed frequencies (i.e. how many users/samples landed on each variant), the calculator does the following:</p>
+
+                        <ol>
+                            <li>
+                                <strong>Calculates expected frequencies</strong> based on your distribution choice:
+                                <ul>
+                                    <li>For equal distribution: each variant gets the same expected count (total samples ÷ number of variants)</li>
+                                    <li>For custom ratio: your specified ratio is normalised (so it sums to 1) and multiplied by the total sample count</li>
+                                </ul>
+                            </li>
+
+                            <li>
+                                <strong>Computes the chi-square statistic</strong> using the formula:
+                                <div class="formula">
+                                    <math display="block">
+                                        <mrow>
+                                            <msup>
+                                            <mi>χ</mi>
+                                            <mn>2</mn>
+                                            </msup>
+                                            <mo>=</mo>
+                                            <mo>∑</mo>
+                                            <mrow>
+                                            <mo>[</mo>
+                                            <mfrac>
+                                                <msup>
+                                                <mrow>
+                                                    <mo>(</mo>
+                                                    <mi>O</mi>
+                                                    <mo>-</mo>
+                                                    <mi>E</mi>
+                                                    <mo>)</mo>
+                                                </mrow>
+                                                <mn>2</mn>
+                                                </msup>
+                                                <mi>E</mi>
+                                            </mfrac>
+                                            <mo>]</mo>
+                                            </mrow>
+                                        </mrow>
+                                    </math>
+                                </div>
+                                <p>where <math display="inline"><mi>O</mi></math> is the observed count for each variant and <math display="inline"><mi>E</mi></math> is the expected count</p>
+                            </li>
+
+                            <li><strong>Determines <a href="https://simple.wikipedia.org/wiki/Degrees_of_freedom_(statistics)" class="external" rel="noopener noreferrer">degrees of freedom</a></strong> as
+                                <math display="inline">
+                                    <mrow>
+                                        <mo>(</mo>
+                                        <mi>n</mi>
+                                        <mo>-</mo>
+                                        <mn>1</mn>
+                                        <mo>)</mo>
+                                    </mrow>
+                                </math>,
+                                where <math display="inline"><mi>n</mi></math> is the number of variants
+                            </li>
+
+                            <li>
+                                <strong>Calculates the p-value</strong> from the chi-square statistic and degrees of freedom using the <a href="https://en.wikipedia.org/wiki/Incomplete_gamma_function#Regularized_gamma_functions" class="external" rel="noopener noreferrer">regularised incomplete gamma function</a>:
+                                <div class="formula">
+                                    <math display="block">
+                                        <mrow>
+                                            <mi>p-value</mi>
+                                            <mo>=</mo>
+                                            <mn>1</mn>
+                                            <mo>-</mo>
+                                            <mi>P</mi>
+                                            <mo>(</mo>
+                                            <mfrac>
+                                                <mi>df</mi>
+                                                <mn>2</mn>
+                                            </mfrac>
+                                            <mo>,</mo>
+                                            <mfrac>
+                                                <msup>
+                                                    <mi>χ</mi>
+                                                    <mn>2</mn>
+                                                </msup>
+                                                <mn>2</mn>
+                                            </mfrac>
+                                            <mo>)</mo>
+                                        </mrow>
+                                    </math>
+                                </div>
+
+                                <p>This involves two numerical approximation techniques:</p>
+                                <ul>
+                                    <li>For smaller chi-square values: <a href="https://dlmf.nist.gov/8.7" class="external" rel="noopener noreferrer">series expansion method</a></li>
+                                    <li>For larger values: <a href="https://dlmf.nist.gov/8.9" class="external" rel="noopener noreferrer">continued fraction method</a></li>
+                                </ul>
+                            </li>
+
+                            <li>
+                                <strong>Interprets the result</strong>:
+                                <ul>
+                                    <li>p < 0.01: strong evidence of sample ratio mismatch</li>
+                                    <li>0.01 ≤ p < 0.05: possible sample ratio mismatch</li>
+                                    <li>p ≥ 0.05: no evidence of sample ratio mismatch</li>
+                                </ul>
+                            </li>
+                        </ol>
+
+                        <hr>
+
+                        <p>All calculations are done locally; your data never leaves your device.</p>
+
+                        <p>The calculator has been tested by comparing its results to that of established statistical packages in Python (<a href="https://docs.scipy.org/doc/scipy/reference/stats.html" class="external" rel="noopener noreferrer">stats</a> from <a href="https://scipy.org/" class="external" rel="noopener noreferrer">scipy</a>). You can verify your device returns the expected numbers, within a 0.01% margin of error, by adding <a href="?test">?test</a> to this calculator's URL.</p>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="app-footer" role="contentinfo">
+            <div class="footer-content">
+                <p class="footer-text">
+                    <span>Made with <span class="heart">♥</span> by <a href="https://osc.garden" class="footer-link external" rel="author" lang="es">Óscar</a></span>
+                    <span class="separator" aria-hidden="true">•</span>
+                    <a href="#how-it-works" class="footer-link">How it works</a>
+                    <span class="separator" aria-hidden="true">•</span>
+                    <a href="#srm-tips" class="footer-link">Tips</a>
+                    <span class="separator" aria-hidden="true">•</span>
+                    <a href="https://github.com/welpo/srm" class="footer-link external" rel="source">View source code</a>
+                </p>
+            </div>
+        </footer>
+
+    </div>
+
+    <script defer src="app.js?h=f5d93103"></script>
+    <script defer src="https://cdn.jsdelivr.net/gh/welpo/experimentation-tools@latest/app/robot.min.js"></script>
+</body>
+</html>
