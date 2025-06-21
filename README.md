@@ -1,9 +1,4 @@
 <p align="center">
-    <a href="https://srm.osc.garden">
-        <img src="https://raw.githubusercontent.com/welpo/srm/main/robot.png" width="150" alt="Robot">
-    </a>
-    <br>
-    <br>
     <a href="#contributing">
         <img src="https://img.shields.io/badge/PRs-welcome-0?style=flat-square&labelcolor=202b2d&color=4a5568" alt="PRs welcome"></a>
     <a href="#license">
