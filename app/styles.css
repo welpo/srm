@@ -137,6 +137,8 @@ body {
 }
 
 .tools-nav a {
+    display: flex;
+    align-items: center;
     z-index: 2;
     transition: all 0.2s;
     padding: 0.6rem 1.2rem;
